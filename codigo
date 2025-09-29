@@ -1,0 +1,68 @@
+//Incluimos las librerias
+#include <WiFi.h>
+#include "DHTesp.h"
+
+//Configuración del DHT11
+//#define DHTPIN 4
+const int pinDHT = 15;  // cambia al pin donde conectaste tu sensor
+DHTesp dht;
+
+//Configuración Wi-fi
+const char* ssid = "FULANO";
+const char* password = "*******";
+
+//Crear un servidor web en el puerto 80 con peticiones http
+WiFiServer server(80);
+
+void setup() {  
+  Serial.begin(115200);
+  //Inicializamos el dht
+  dht.setup(pinDHT, DHTesp::DHT11);
+  //Conexion a la red Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED){
+    delay(2000); // velocidad de la simulation 1 segundo.
+    Serial.print(".");
+  }
+  //Conexión Exitosa
+  Serial.println("");
+  Serial.println("Conectado a la red Wi-Fi");
+  Serial.print("Dirección IP: ");
+  Serial.println(WiFi.localIP());
+  // Iniciar el servidor
+  server.begin();
+}
+
+void loop() {
+  WiFiClient client = server.available();
+
+  if(client){
+  Serial.println("Nuevo cliente conectado");
+  String request = client.readStringUntil('\r');
+  Serial.print(request);
+  client.flush();
+
+  //leer datos del sensor DHT11
+  float temperatura = dht.getTemperature();
+  float humedad = dht.getHumidity();
+
+  //Generar contenido HYML
+  String pagina = "<html><body>";
+  pagina += "<title> Monitor de Temperatura y Humedad</title>";
+  pagina += "<meta http-equiv= 'refresh' content='5'>"; //Actualización automatica cada 5 segundos
+  pagina += "<h1>Servidor Web ETITC control Temperatura ESP32</h1>";
+  pagina += "<p>Temperatura: "+ String(temperatura)+ " &deg;C</p>";
+  pagina += "<p>Humedad: " + String(humedad)+ " %</p>";  
+  pagina += "</body></html>";
+
+  //Enviar respuesta al cliente
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-type:text/html");
+  client.println();
+  client.println(pagina);
+  client.println("");
+
+  client.stop();
+  Serial.println("Cliente desconectado");
+  }
+}
